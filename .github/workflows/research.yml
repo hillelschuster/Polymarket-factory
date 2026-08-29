@@ -25,6 +25,8 @@ jobs:
         run: python research/youtube_horizon_inventory.py
       - name: Backtest chronological YouTube horizon transitions
         run: python research/youtube_transition_backtest.py
+      - name: Strictly audit YouTube execution timing
+        run: python research/youtube_transition_strict_audit.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
@@ -33,3 +35,4 @@ jobs:
             state_family_inventory.json
             youtube_horizon_inventory.json
             youtube_transition_backtest.json
+            youtube_transition_strict_audit.json
