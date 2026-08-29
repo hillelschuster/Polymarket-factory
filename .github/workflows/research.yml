@@ -13,11 +13,20 @@ concurrency:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Probe public NBA season page
-        run: python research/sportsdb_nba_probe.py
+      - name: Inventory repeated state-constraint market families
+        run: python research/state_family_inventory.py
+      - name: Audit deterministic NBA win-total states
+        run: python research/nba_win_total_elimination.py
+      - name: Upload research outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-output
+          path: |
+            state_family_inventory.json
+            nba_win_total_elimination.json
