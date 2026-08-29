@@ -29,6 +29,8 @@ jobs:
         run: python research/youtube_transition_strict_audit.py
       - name: Audit YouTube tail-NO limit-price availability
         run: python research/youtube_limit_fill_audit.py
+      - name: Falsify simple YouTube velocity-decay central-bin model
+        run: python research/youtube_velocity_decay_test.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
@@ -39,3 +41,4 @@ jobs:
             youtube_transition_backtest.json
             youtube_transition_strict_audit.json
             youtube_limit_fill_audit.json
+            youtube_velocity_decay_test.json
