@@ -12,8 +12,10 @@ from collections import Counter,defaultdict
 
 BASE='https://gamma-api.polymarket.com/events'
 UA={'User-Agent':'polymarket-factory-research/1.0'}
-LIMIT=100                 # Gamma currently caps event pages around 100.
-MAX_EVENTS=5000           # 50 calls: broad enough for discovery without wasting CI.
+LIMIT=100
+# Gamma rejects deep offsets around ~2,100. Two thousand highest-volume closed events
+# are enough for broad discovery; repeated families get dedicated public-search scans.
+MAX_EVENTS=2000
 MIN_VOLUME=1000.0
 
 FAMILIES={
@@ -34,8 +36,6 @@ def num(v):
     except:return 0.0
 
 def event_text(e):
-    # Descriptions often mention unrelated examples/resolution language and caused
-    # false positives. Restrict discovery to market-facing names/questions.
     parts=[e.get('title') or '',e.get('subtitle') or '']
     for m in e.get('markets') or []:parts.extend([m.get('question') or '',m.get('groupItemTitle') or ''])
     return ' '.join(parts).lower()
@@ -69,8 +69,6 @@ def main():
     for e in raw:
         text=event_text(e);families,reasons,exclusions=classify(text);volume=num(e.get('volume'))
         if not families or volume<MIN_VOLUME:continue
-        # Hard-delete obvious unrelated structures only when no box-office/streaming
-        # family is present; some legitimate multi-market events can contain words like price.
         if exclusions and not any(f in families for f in ('box_office_sales','streaming_views_charts')):continue
         rows.append({'id':e.get('id'),'slug':e.get('slug'),'title':e.get('title'),'category':e.get('category'),'subcategory':e.get('subcategory'),'startDate':e.get('startDate'),'endDate':e.get('endDate'),'volume':volume,'market_count':len(e.get('markets') or []),'families':families,'match_reasons':reasons,'exclusion_warnings':exclusions})
     rows.sort(key=lambda x:x['volume'],reverse=True)
