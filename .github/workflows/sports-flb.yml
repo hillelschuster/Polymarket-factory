@@ -1,0 +1,28 @@
+name: Sports FLB Independent Check
+on:
+  push:
+    paths:
+      - 'research/sports_flb_independent_check.py'
+      - '.github/workflows/sports-flb.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-sports-flb-research
+  cancel-in-progress: true
+
+jobs:
+  sports-flb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Independently test T-7d sports calibration edge
+        run: python research/sports_flb_independent_check.py
+      - name: Upload sports calibration output
+        uses: actions/upload-artifact@v4
+        with:
+          name: sports-flb-output
+          path: sports_flb_independent_check.json
