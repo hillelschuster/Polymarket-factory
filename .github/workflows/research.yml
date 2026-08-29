@@ -2,18 +2,22 @@ name: Polymarket Factory Research
 on:
   push:
     paths:
-      - 'research/**'
+      - 'research/logical_constraint_inventory.py'
+      - 'research/logical_constraint_live_probe.py'
+      - 'research/negrisk_yes_basket_screen.py'
+      - 'research/date_ladder_live_probe.py'
+      - 'research/state_family_inventory.py'
       - '.github/workflows/research.yml'
   workflow_dispatch:
 
 concurrency:
-  group: polymarket-alpha-research
+  group: polymarket-alpha-structural-research
   cancel-in-progress: true
 
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,6 +29,8 @@ jobs:
         run: python research/logical_constraint_inventory.py
       - name: Probe live executable monotonicity violations
         run: python research/logical_constraint_live_probe.py
+      - name: Probe exact deadline ladders
+        run: python research/date_ladder_live_probe.py
       - name: Screen unsupported NegRisk YES-basket underrounds
         run: python research/negrisk_yes_basket_screen.py
       - name: Upload research outputs
@@ -35,4 +41,5 @@ jobs:
             state_family_inventory.json
             logical_constraint_inventory.json
             logical_constraint_live_probe.json
+            date_ladder_live_probe.json
             negrisk_yes_basket_screen.json
