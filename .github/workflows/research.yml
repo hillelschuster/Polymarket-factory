@@ -13,30 +13,26 @@ concurrency:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Discover broad cumulative-state market universe
-        run: python research/cumulative_universe.py
+      - name: Inventory repeated state-constraint market families
+        run: python research/state_family_inventory.py
       - name: Inventory repeated opening-weekend box office markets
         run: python research/boxoffice_weekend_inventory.py
       - name: Reconstruct box office running state
         run: python research/boxoffice_state_data.py
-      - name: Audit box office historical trade prices
-        run: python research/boxoffice_sunday_trade_audit.py
-      - name: Chronological box office state-lock backtest
-        run: python research/boxoffice_crossval_backtest.py
+      - name: Falsify one-feature box office front-loading refinement
+        run: python research/boxoffice_frontload_test.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
           path: |
-            cumulative_universe.json
-            cumulative_universe.csv
+            state_family_inventory.json
             boxoffice_weekend_inventory.json
             boxoffice_state_data.json
-            boxoffice_sunday_trade_audit.json
-            boxoffice_crossval_backtest.json
+            boxoffice_frontload_test.json
