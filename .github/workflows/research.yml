@@ -15,14 +15,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Executable midterm cross-venue probe
-        run: python research/midterm_crossvenue_probe.py
-      - name: FOMC cross-venue Warsh audit
-        run: python research/fomc_crossvenue_warsh.py
+      - name: Spotify cumulative leader lock
+        run: python research/spotify_leader_lock.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
-          path: |
-            midterm_crossvenue_probe.json
-            fomc_crossvenue_warsh.json
+          path: spotify_leader_lock.json
