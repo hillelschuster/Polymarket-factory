@@ -19,6 +19,10 @@ jobs:
         run: python research/probe_sources.py
       - name: XTracker chronological backtest
         run: python research/xtracker_backtest.py
+      - name: XTracker actual-print audit
+        run: python research/xtracker_audit.py
+      - name: Macro release latency test
+        run: python research/macro_release_latency.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
@@ -26,3 +30,5 @@ jobs:
           path: |
             probe_output.json
             xtracker_backtest.json
+            xtracker_audit.json
+            macro_release_latency.json
