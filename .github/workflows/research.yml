@@ -9,14 +9,12 @@ on:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Executable cross-venue nomination probe
-        run: python research/crossvenue_exec_probe.py
       - name: Executable midterm cross-venue probe
         run: python research/midterm_crossvenue_probe.py
       - name: FOMC cross-venue Warsh audit
@@ -26,6 +24,5 @@ jobs:
         with:
           name: research-output
           path: |
-            crossvenue_exec_probe.json
             midterm_crossvenue_probe.json
             fomc_crossvenue_warsh.json
