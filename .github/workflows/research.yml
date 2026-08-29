@@ -21,12 +21,12 @@ jobs:
           python-version: '3.12'
       - name: Inventory repeated state-constraint market families
         run: python research/state_family_inventory.py
-      - name: Audit deterministic NBA win-total states
-        run: python research/nba_win_total_elimination.py
+      - name: Inventory exact multi-horizon YouTube state checkpoints
+        run: python research/youtube_horizon_inventory.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
           path: |
             state_family_inventory.json
-            nba_win_total_elimination.json
+            youtube_horizon_inventory.json
