@@ -19,10 +19,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Discover state-constrained Polymarket universe
+      - name: Discover high-volume state-constrained universe
         run: python research/state_market_discovery.py
+      - name: Build full economic-subtype inventory
+        run: python research/state_market_inventory_full.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
-          path: state_market_candidates.json
+          path: |
+            state_market_candidates.json
+            state_market_inventory_full.json
