@@ -9,16 +9,20 @@ on:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Spotify cumulative leader lock
+      - name: Reconstruct Spotify point-in-time streams
+        run: python research/spotify_reconstruct.py
+      - name: Snapshot Spotify Polymarket book
         run: python research/spotify_leader_lock.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
-          path: spotify_leader_lock.json
+          path: |
+            spotify_reconstruction.json
+            spotify_leader_lock.json
