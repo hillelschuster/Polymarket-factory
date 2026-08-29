@@ -21,12 +21,12 @@ jobs:
           python-version: '3.12'
       - name: Inventory opening-weekend box office markets
         run: python research/boxoffice_weekend_inventory.py
-      - name: Audit late-Sunday winning-bracket prices
-        run: python research/boxoffice_late_price_audit.py
+      - name: Audit Sunday winning-bracket trade prices
+        run: python research/boxoffice_sunday_trade_audit.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
           path: |
             boxoffice_weekend_inventory.json
-            boxoffice_late_price_audit.json
+            boxoffice_sunday_trade_audit.json
