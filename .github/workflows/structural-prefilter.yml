@@ -1,0 +1,28 @@
+name: Structural Gamma Prefilter
+on:
+  push:
+    paths:
+      - 'research/structural_gamma_prefilter.py'
+      - '.github/workflows/structural-prefilter.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-structural-prefilter
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Gamma prefilter then exact CLOB verify
+        run: python research/structural_gamma_prefilter.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: structural-prefilter-output
+          path: structural_gamma_prefilter.json
