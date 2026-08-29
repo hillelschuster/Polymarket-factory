@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Independent CLOB-clock robustness check for macro release latency.
-Uses Polymarket's batch price-history endpoint because the single-token endpoint
-returns empty history for these closed macro tokens in narrow historical windows.
+"""Test whether direct BLS bracket markets were still tradeable after the official release.
+Uses a broad 6h pre-release / 10m post-release CLOB batch-price-history window.
 """
 import datetime as dt, json, urllib.parse, urllib.request
 from zoneinfo import ZoneInfo
@@ -44,16 +43,19 @@ def main():
             ev=get('https://gamma-api.polymarket.com/events/slug/'+slug); m,token=winner(ev)
             if not m:raise RuntimeError('winner token not found')
             date=(CPI if fam=='CPI' else PPI if fam=='PPI' else EMP)[mo]; release=rel(*date); rt=int(release.timestamp())
-            h=post('https://clob.polymarket.com/batch-prices-history',{'markets':[token],'start_ts':rt-180,'end_ts':rt+660,'interval':'all','fidelity':1}).get('history',{})
+            h=post('https://clob.polymarket.com/batch-prices-history',{'markets':[token],'start_ts':rt-21600,'end_ts':rt+600,'interval':'all','fidelity':1}).get('history',{})
             ph=h.get(token) or h.get(str(token)) or []
-            rec={'family':fam,'month':mo,'slug':slug,'title':ev.get('title'),'volume':float(ev.get('volume') or 0),'winner':m.get('groupItemTitle') or m.get('question'),'release':release.isoformat(),'token':token,'history':ph}
+            pts=sorted((int(x['t']),float(x['p'])) for x in ph if 't'in x and 'p'in x)
+            rec={'family':fam,'month':mo,'slug':slug,'title':ev.get('title'),'volume':float(ev.get('volume') or 0),'winner':m.get('groupItemTitle') or m.get('question'),'release':release.isoformat(),'token':token,'point_count':len(pts),'last_point':({'t':pts[-1][0],'delta_s':pts[-1][0]-rt,'p':pts[-1][1]} if pts else None),'first_post_release':first_after(ph,rt)}
             for mins in (1,2,5):rec[f'first_after_{mins}m']=first_after(ph,rt+60*mins)
             rows.append(rec)
         except Exception as ex:errors.append({'slug':slug,'error':repr(ex)})
-    summary={}
+    with_hist=[r for r in rows if r['point_count']]
+    post=[r for r in with_hist if r['first_post_release']]
+    summary={'events':len(rows),'events_with_history':len(with_hist),'events_with_any_post_release_clob_point':len(post),'last_delta_seconds':[r['last_point']['delta_s'] for r in with_hist]}
     for mins in (1,2,5):
-        xs=[r for r in rows if r.get(f'first_after_{mins}m')]; stale=[r for r in xs if r[f'first_after_{mins}m']['p']<=.95]; severe=[r for r in xs if r[f'first_after_{mins}m']['p']<=.90]
-        summary[f'{mins}m']={'events_with_point':len(xs),'winner_price_le_95c':len(stale),'winner_price_le_90c':len(severe),'events':[{'slug':r['slug'],'family':r['family'],'winner':r['winner'],'volume':r['volume'],**r[f'first_after_{mins}m']} for r in stale]}
-    out={'method':{'clock':'CLOB batch-prices-history timestamps; 1-minute fidelity','test':'first sampled winning-token price at/after release+1/2/5 minutes','strength':'cleaner clock than Data API on-chain timestamps, but historical price is not executable L2 depth'},'rows':rows,'summary':summary,'errors':errors}
+        xs=[r for r in with_hist if r.get(f'first_after_{mins}m')]; stale=[r for r in xs if r[f'first_after_{mins}m']['p']<=.95]
+        summary[f'{mins}m']={'events_with_point':len(xs),'winner_price_le_95c':len(stale),'events':[{'slug':r['slug'],'family':r['family'],'winner':r['winner'],'volume':r['volume'],**r[f'first_after_{mins}m']} for r in stale]}
+    out={'method':{'clock':'CLOB batch-prices-history timestamps; 1-minute fidelity','window':'release-6h to release+10m','primary_question':'whether direct BLS bracket tokens have any CLOB price point after the official release','caveat':'price-history points are not L2 depth, but absence/presence establishes whether sampled CLOB pricing continued'},'rows':rows,'summary':summary,'errors':errors}
     json.dump(out,open('macro_clob_robustness.json','w'),indent=2); print(json.dumps({'summary':summary,'errors':errors},indent=2))
 if __name__=='__main__':main()
