@@ -21,18 +21,12 @@ jobs:
           python-version: '3.12'
       - name: Inventory repeated state-constraint market families
         run: python research/state_family_inventory.py
-      - name: Inventory repeated opening-weekend box office markets
-        run: python research/boxoffice_weekend_inventory.py
-      - name: Reconstruct box office running state
-        run: python research/boxoffice_state_data.py
-      - name: Falsify one-feature box office front-loading refinement
-        run: python research/boxoffice_frontload_test.py
+      - name: Audit deterministic NBA win-total eliminations
+        run: python research/nba_win_total_elimination.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
           path: |
             state_family_inventory.json
-            boxoffice_weekend_inventory.json
-            boxoffice_state_data.json
-            boxoffice_frontload_test.json
+            nba_win_total_elimination.json
