@@ -15,29 +15,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Probe public sources
-        run: python research/probe_sources.py
-      - name: XTracker chronological backtest
-        run: python research/xtracker_backtest.py
-      - name: XTracker actual-print audit
-        run: python research/xtracker_audit.py
-      - name: Macro release latency test
-        run: python research/macro_release_latency.py
-      - name: Macro CLOB-clock robustness
-        run: python research/macro_clob_robustness.py
-      - name: FOMC cross-venue Warsh audit
-        run: python research/fomc_crossvenue_warsh.py
       - name: Executable cross-venue nomination probe
         run: python research/crossvenue_exec_probe.py
+      - name: Executable midterm cross-venue probe
+        run: python research/midterm_crossvenue_probe.py
+      - name: FOMC cross-venue Warsh audit
+        run: python research/fomc_crossvenue_warsh.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
           path: |
-            probe_output.json
-            xtracker_backtest.json
-            xtracker_audit.json
-            macro_release_latency.json
-            macro_clob_robustness.json
-            fomc_crossvenue_warsh.json
             crossvenue_exec_probe.json
+            midterm_crossvenue_probe.json
+            fomc_crossvenue_warsh.json
