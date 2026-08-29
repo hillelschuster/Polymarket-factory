@@ -1,0 +1,24 @@
+name: Polymarket Factory Research
+on:
+  push:
+    paths:
+      - 'research/**'
+      - '.github/workflows/research.yml'
+  workflow_dispatch:
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe public sources
+        run: python research/probe_sources.py
+      - name: Upload probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-output
+          path: probe_output.json
