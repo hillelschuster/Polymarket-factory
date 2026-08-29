@@ -19,13 +19,18 @@ No apparent opportunity is promoted without exact CLOB asks and current fee stre
 from __future__ import annotations
 
 import json
+import sys
 import urllib.parse
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
 
-from research.logical_constraint_inventory import parse_threshold, decode_json_list, fnum
-from research.date_ladder_live_probe import parse_question as parse_deadline, year_hint
+# This script is invoked directly as `python research/structural_gamma_prefilter.py`.
+# Put its own directory on sys.path so sibling research modules resolve in CI.
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from logical_constraint_inventory import parse_threshold, decode_json_list, fnum
+from date_ladder_live_probe import parse_question as parse_deadline, year_hint
 
 OUT = Path("structural_gamma_prefilter.json")
 UA = {"User-Agent": "polymarket-factory-research/1.0"}
@@ -145,7 +150,6 @@ def deadline_pairs(events):
         if len(srcs) > 1: continue
         rs = sorted(rs, key=lambda r: r["deadline"])
         for early, late in zip(rs, rs[1:]):
-            # by/before EARLY is subset of by/before LATE.
             out.append({"family": "deadline_by_before", "superset": late, "subset": early})
     return out
 
@@ -182,7 +186,7 @@ def verify(pair, books, fees):
     if not ay or not an: return None
     py, sy = ay; pn, sn = an
     raw = py + pn
-    fy = fn = ry = rn = 0.0
+    fy = fn = 0.0
     if raw < 1:
         ry = fee_rate(sup.get("condition_id"), fees)
         rn = fee_rate(sub.get("condition_id"), fees)
@@ -218,7 +222,6 @@ def verify(pair, books, fees):
 def main():
     events, errors = fetch_active()
     pairs = numeric_pairs(events) + deadline_pairs(events)
-    # Gamma inversion is only a prefilter. Require both values and ask < bid.
     inversions = []
     for p in pairs:
         sup, sub = p["superset"], p["subset"]
