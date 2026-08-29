@@ -7,29 +7,22 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: spotify-alpha-research
+  group: state-constraint-research
   cancel-in-progress: true
 
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build audited observed Spotify series
-        run: python research/spotify_observed_series.py
-      - name: Run resolver-gap and release-shock stress grid
-        run: python research/spotify_stress.py
-      - name: Snapshot executable Polymarket book and EV
-        run: python research/spotify_leader_lock.py
+      - name: Discover state-constrained Polymarket universe
+        run: python research/state_market_discovery.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
-          path: |
-            spotify_observed_series.json
-            spotify_stress.json
-            spotify_leader_lock.json
+          path: state_market_candidates.json
