@@ -21,6 +21,8 @@ jobs:
           python-version: '3.12'
       - name: Inventory opening-weekend box office markets
         run: python research/boxoffice_weekend_inventory.py
+      - name: Reconstruct Friday Saturday Sunday grosses
+        run: python research/boxoffice_state_data.py
       - name: Audit Sunday winning-bracket trade prices
         run: python research/boxoffice_sunday_trade_audit.py
       - name: Upload research outputs
@@ -29,4 +31,5 @@ jobs:
           name: research-output
           path: |
             boxoffice_weekend_inventory.json
+            boxoffice_state_data.json
             boxoffice_sunday_trade_audit.json
