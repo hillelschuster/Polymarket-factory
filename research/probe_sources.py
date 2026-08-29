@@ -23,7 +23,7 @@ def slim_event(e):
     }
 
 out = {}
-for q in ['Core CPI', 'Consumer Price Index', 'PPI', 'Unemployment Rate', 'Nonfarm Payrolls', 'Price of Dozen Eggs']:
+for q in ['Core CPI', 'Consumer Price Index', 'PPI', 'Unemployment Rate', 'Nonfarm Payrolls', 'Price of Dozen Eggs', 'Truth Social posts']:
     try:
         data = get('https://gamma-api.polymarket.com/public-search', {
             'q': q, 'events_status': 'closed', 'keep_closed_markets': 1,
