@@ -34,9 +34,10 @@ LOW_WORDS = (
     "or below",
 )
 
-# Units where a larger numeric threshold has a clear ordering. We also permit no
-# explicit unit when the same normalized question supplies the semantics.
-UNIT_RE = r"(?:%|bps?|basis points?|[kmb]|thousand|million|billion|trillion|votes?|seats?|points?|goals?|wins?|losses?|runs?|yards?|touchdowns?|medals?|delegates?|mentions?|posts?|tweets?|views?|streams?|downloads?|subscribers?|members?|days?|hours?|minutes?|seconds?)?"
+# Units where a larger numeric threshold has a clear ordering. Explicit boundaries
+# matter: without them the "b" in "by" after "$4,000" is misread as billion.
+_WORD_UNITS = r"bps?|basis points?|thousand|million|billion|trillion|votes?|seats?|points?|goals?|wins?|losses?|runs?|yards?|touchdowns?|medals?|delegates?|mentions?|posts?|tweets?|views?|streams?|downloads?|subscribers?|members?|days?|hours?|minutes?|seconds?"
+UNIT_RE = rf"(?:%|(?:{_WORD_UNITS})\b|[kmb](?![a-z]))?"
 NUM_RE = r"(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
 CURRENCY_RE = r"[$€£]?"
 
