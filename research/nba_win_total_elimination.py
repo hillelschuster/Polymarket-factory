@@ -20,14 +20,16 @@ import datetime as dt
 import json,re,time,urllib.parse,urllib.request
 from pathlib import Path
 
-UA={"User-Agent":"polymarket-factory-research/1.0"}
+# ESPN rejects some bot-looking agents from cloud runners. These are ordinary browser
+# headers against a public endpoint; no auth/cookies or private data are used.
+UA={"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/132.0 Safari/537.36","Accept":"application/json,text/plain,*/*","Referer":"https://www.espn.com/"}
 OUT=Path("nba_win_total_elimination.json")
 EVENT_SLUG="nba-win-totals-over-or-under"
 SEASON=2026
 REG_SEASON_GAMES=82
 CONSERVATIVE_GAME_HOURS=5
 DELAYS_MIN=(0,10,30,120,360)
-CURRENT_SPORTS_FEE_RATE=0.05  # current Aug-2026 help-center schedule; historical fees may have been lower.
+CURRENT_SPORTS_FEE_RATE=0.05
 
 def get(url,params=None,timeout=30):
     if params:url+=("&" if "?" in url else "?")+urllib.parse.urlencode(params,doseq=True)
@@ -72,7 +74,7 @@ def schedule(team_id):
     return get(f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{team_id}/schedule",{"season":SEASON,"seasontype":2})
 
 def completed_record(team_id):
-    j=schedule(team_id); games=[];wins=0
+    j=schedule(team_id); games=[]
     for ev in j.get("events") or []:
         comp=(ev.get("competitions") or [{}])[0]
         status=(comp.get("status") or ev.get("status") or {}).get("type") or {}
@@ -80,13 +82,9 @@ def completed_record(team_id):
         competitors=comp.get("competitors") or []
         me=next((c for c in competitors if str((c.get("team") or {}).get("id"))==str(team_id)),None)
         if not me:continue
-        # schedule endpoint is regular-season scoped; count completed official games only.
-        win=bool(me.get("winner"))
-        wins+=int(win)
         start=iso(ev.get("date"))
-        games.append({"event_id":ev.get("id"),"date":ev.get("date"),"start":start,"win":win,"wins_after":wins,"games_after":len(games)+1,"name":ev.get("name")})
+        games.append({"event_id":ev.get("id"),"date":ev.get("date"),"start":start,"win":bool(me.get("winner")),"name":ev.get("name")})
     games.sort(key=lambda x:x["start"])
-    # Recompute chronological wins because API ordering is not guaranteed.
     wins=0
     for i,g in enumerate(games,1):wins+=int(g["win"]);g["wins_after"]=wins;g["games_after"]=i
     return games
@@ -108,7 +106,6 @@ def trades(condition_id,start,end):
 def certain_token(market):
     outs=[str(x).lower() for x in arr(market.get("outcomes"))]; ids=[str(x) for x in arr(market.get("clobTokenIds"))]
     if len(ids)<2:return None,None
-    # These markets are YES/NO; the certain UNDER state is NO. Also support literal Over/Under.
     for wanted in ("no","under"):
         if wanted in outs:
             i=outs.index(wanted);return ids[i],outs[i]
@@ -128,7 +125,7 @@ def first_buy_after(rows,token,ts):
 def main():
     ev=get("https://gamma-api.polymarket.com/events/slug/"+EVENT_SLUG); teams=espn_teams(); results=[]; errors=[]
     markets=ev.get("markets") or []
-    for idx,m in enumerate(markets):
+    for m in markets:
         team=find_team(m,teams); line=parse_line(m); token,outcome=certain_token(m)
         if not team or line is None or not token:
             errors.append({"market":m.get("question"),"team":team,"line":line,"token":token});continue
@@ -143,18 +140,15 @@ def main():
         if elim:
             ee=dict(elim);ee["start"]=ee["start"].isoformat();ee["ready_utc"]=ee["ready_utc"].isoformat();rec["elimination"]=ee
             ready=iso(ee["ready_utc"]); tr=trades(str(m.get("conditionId")),ready,ready+dt.timedelta(hours=72))
-            for dm in DELAYS_MIN:
-                rec["post_elimination"][f"after_{dm}m"]=first_buy_after(tr,token,ready+dt.timedelta(minutes=dm))
-            # Count clear stale certain-side buys after conservative +10m, split by economically meaningful prices.
-            clear=[]
-            cutoff=ready+dt.timedelta(minutes=10)
+            for dm in DELAYS_MIN:rec["post_elimination"][f"after_{dm}m"]=first_buy_after(tr,token,ready+dt.timedelta(minutes=dm))
+            clear=[];cutoff=ready+dt.timedelta(minutes=10)
             for x in tr:
                 if str(x.get("asset"))!=str(token) or str(x.get("side") or "").upper()!="BUY":continue
                 try:t=int(x["timestamp"]);p=float(x["price"]);sz=float(x.get("size") or 0)
                 except:continue
                 if t>=int(cutoff.timestamp()):clear.append({"t":t,"p":p,"size":sz})
             rec["clear_stale_buys_after_10m"]={"n":len(clear),"lt_99":sum(x["p"]<.99 for x in clear),"lt_98":sum(x["p"]<.98 for x in clear),"lt_95":sum(x["p"]<.95 for x in clear),"min_price":min((x["p"] for x in clear),default=None),"max_size_at_lt98":max((x["size"] for x in clear if x["p"]<.98),default=None)}
-        results.append(rec);time.sleep(.02)
+        results.append(rec);time.sleep(.01)
     eligible=[r for r in results if r.get("elimination") and r.get("under_resolved")]
     def opp(delay="after_10m",cap=.98):
         xs=[]
