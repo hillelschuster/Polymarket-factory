@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: cumulative-alpha-research
+  group: polymarket-alpha-research
   cancel-in-progress: true
 
 jobs:
@@ -21,24 +21,12 @@ jobs:
           python-version: '3.12'
       - name: Inventory repeated state-constraint market families
         run: python research/state_family_inventory.py
-      - name: Inventory exact multi-horizon YouTube state checkpoints
-        run: python research/youtube_horizon_inventory.py
-      - name: Backtest chronological YouTube horizon transitions
-        run: python research/youtube_transition_backtest.py
-      - name: Strictly audit YouTube execution timing
-        run: python research/youtube_transition_strict_audit.py
-      - name: Audit YouTube tail-NO limit-price availability
-        run: python research/youtube_limit_fill_audit.py
-      - name: Falsify simple YouTube velocity-decay central-bin model
-        run: python research/youtube_velocity_decay_test.py
+      - name: Inventory unenforced monotonic logical constraints
+        run: python research/logical_constraint_inventory.py
       - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
           name: research-output
           path: |
             state_family_inventory.json
-            youtube_horizon_inventory.json
-            youtube_transition_backtest.json
-            youtube_transition_strict_audit.json
-            youtube_limit_fill_audit.json
-            youtube_velocity_decay_test.json
+            logical_constraint_inventory.json
