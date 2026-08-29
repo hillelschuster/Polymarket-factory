@@ -17,8 +17,12 @@ jobs:
           python-version: '3.12'
       - name: Probe public sources
         run: python research/probe_sources.py
-      - name: Upload probe
+      - name: XTracker chronological backtest
+        run: python research/xtracker_backtest.py
+      - name: Upload research outputs
         uses: actions/upload-artifact@v4
         with:
-          name: probe-output
-          path: probe_output.json
+          name: research-output
+          path: |
+            probe_output.json
+            xtracker_backtest.json
