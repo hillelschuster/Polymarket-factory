@@ -17,6 +17,8 @@ jobs:
           python-version: '3.12'
       - name: Reconstruct Spotify point-in-time streams
         run: python research/spotify_reconstruct.py
+      - name: Model Spotify cumulative leader lock
+        run: python research/spotify_model.py
       - name: Snapshot Spotify Polymarket book
         run: python research/spotify_leader_lock.py
       - name: Upload research outputs
@@ -25,4 +27,5 @@ jobs:
           name: research-output
           path: |
             spotify_reconstruction.json
+            spotify_model.json
             spotify_leader_lock.json
