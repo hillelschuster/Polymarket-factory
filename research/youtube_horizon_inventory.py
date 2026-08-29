@@ -5,8 +5,8 @@ Goal: determine whether resolved earlier-horizon markets can serve as historical
 state checkpoints for later-horizon markets on the same underlying video.
 
 This stage does NOT trade or fit a model. It records resolver/source identifiers,
-horizons, bracket shapes and exact event timing so later tests can group only when
-identity is defensible.
+horizons, bracket shapes and resolution timing so later tests can group only when
+identity and information availability are defensible.
 """
 from __future__ import annotations
 import json,re,time,urllib.parse,urllib.request
@@ -34,8 +34,7 @@ def txt_fields(obj):
     return "\n".join(str(obj.get(k) or "") for k in keys)
 
 def youtube_ids(obj):
-    text=txt_fields(obj)
-    return sorted(set(m.group(1) for m in YT_RE.finditer(text)))
+    return sorted(set(m.group(1) for m in YT_RE.finditer(txt_fields(obj))))
 
 def all_urls(obj):
     return sorted(set(x.rstrip('.,;') for x in URL_RE.findall(txt_fields(obj))))
@@ -59,7 +58,10 @@ def compact_market(m):
     text=" ".join([str(m.get('question') or ''),str(m.get('groupItemTitle') or '')])
     return {
       'id':m.get('id'),'conditionId':m.get('conditionId'),'question':m.get('question'),
-      'groupItemTitle':m.get('groupItemTitle'),'endDate':m.get('endDate'),'closed':m.get('closed'),
+      'groupItemTitle':m.get('groupItemTitle'),'startDate':m.get('startDate'),'endDate':m.get('endDate'),
+      'createdAt':m.get('createdAt'),'updatedAt':m.get('updatedAt'),'closedTime':m.get('closedTime'),
+      'umaEndDate':m.get('umaEndDate'),'umaResolutionStatus':m.get('umaResolutionStatus'),
+      'closed':m.get('closed'),'active':m.get('active'),'feesEnabled':m.get('feesEnabled'),
       'outcomes':arr(m.get('outcomes')),'outcomePrices':arr(m.get('outcomePrices')),
       'clobTokenIds':arr(m.get('clobTokenIds')),'volume':float(m.get('volume') or 0),
       'resolutionSource':m.get('resolutionSource'),'youtube_ids':youtube_ids(m),'urls':all_urls(m),
@@ -89,15 +91,14 @@ def main():
         title=ev.get('title') or ''
         rec={
           'id':ev.get('id'),'slug':ev.get('slug'),'title':title,'horizon_hours':horizon(title+' '+str(ev.get('description') or '')),
-          'startDate':ev.get('startDate'),'endDate':ev.get('endDate'),'createdAt':ev.get('createdAt'),'closed':bool(ev.get('closed')),'active':bool(ev.get('active')),
-          'volume':float(ev.get('volume') or 0),'description':ev.get('description'),'resolutionSource':ev.get('resolutionSource'),
+          'startDate':ev.get('startDate'),'endDate':ev.get('endDate'),'createdAt':ev.get('createdAt'),'updatedAt':ev.get('updatedAt'),
+          'closed':bool(ev.get('closed')),'active':bool(ev.get('active')),'volume':float(ev.get('volume') or 0),
+          'description':ev.get('description'),'resolutionSource':ev.get('resolutionSource'),
           'youtube_ids':youtube_ids(ev),'urls':all_urls(ev),'markets':[compact_market(m) for m in (ev.get('markets') or [])]
         }
-        # Include source ids/URLs appearing only at market level.
         rec['youtube_ids']=sorted(set(rec['youtube_ids']+sum((m['youtube_ids'] for m in rec['markets']),[])))
         rec['urls']=sorted(set(rec['urls']+sum((m['urls'] for m in rec['markets']),[])))
         events.append(rec);time.sleep(.01)
-    # Exact grouping only: common YouTube video id. Everything else remains ungrouped.
     by_video=defaultdict(list)
     for ev in events:
         for yid in ev['youtube_ids']:by_video[yid].append(ev)
