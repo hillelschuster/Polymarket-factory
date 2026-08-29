@@ -27,7 +27,6 @@ def main():
     end=int(dt.datetime(2026,8,28,11,30,tzinfo=ET).timestamp())
     speech=int(dt.datetime(2026,8,28,10,0,tzinfo=ET).timestamp())
     out={'window':{'start':start,'speech':speech,'end':end},'kalshi':{},'polymarket':{}}
-    # Exact Kalshi 25bp-hike market ticker observed from public market URL/search data.
     candidates=['KXFEDDECISION-26SEP-H2','KXFEDDECISION-26SEP-H25','KXFEDDECISION-26SEP-HIKE25']
     for ticker in candidates:
         try:
@@ -41,7 +40,6 @@ def main():
             break
         except Exception as ex:
             out['kalshi'].setdefault('candidate_errors',[]).append({'ticker':ticker,'error':repr(ex)})
-    # Polymarket exact +25bp YES token.
     ev=get('https://gamma-api.polymarket.com/events/slug/fed-decision-in-september-762')
     target=None
     for m in ev.get('markets') or []:
@@ -51,18 +49,27 @@ def main():
             if ids: target=(m,str(ids[0])); break
     if not target: raise RuntimeError('Polymarket +25bp token not found')
     m,token=target
-    out['polymarket']['token']=token; out['polymarket']['market']={k:m.get(k) for k in ['id','question','groupItemTitle','slug','outcomePrices','volume']}
+    condition=m.get('conditionId') or m.get('condition_id')
+    out['polymarket']['token']=token
+    out['polymarket']['condition_id']=condition
+    out['polymarket']['market']={k:m.get(k) for k in ['id','conditionId','question','groupItemTitle','slug','outcomePrices','volume']}
     try:
         h=post('https://clob.polymarket.com/batch-prices-history',{'markets':[token],'start_ts':start,'end_ts':end,'interval':'all','fidelity':1}).get('history',{})
         out['polymarket']['price_history']=h.get(token) or h.get(str(token)) or []
     except Exception as ex: out['polymarket']['price_history_error']=repr(ex)
-    # Public matched trade prints in window for same token.
     try:
-        trades=get('https://data-api.polymarket.com/trades',{'asset_id':token,'limit':1000,'offset':0})
+        out['polymarket']['ohlc']=get('https://clob.polymarket.com/ohlc',{'asset_id':token,'startTs':start,'endTs':end,'fidelity':'1m','limit':1000})
+    except Exception as ex: out['polymarket']['ohlc_error']=repr(ex)
+    try:
+        out['polymarket']['orderbook_history']=get('https://clob.polymarket.com/orderbook-history',{'asset_id':token,'startTs':start,'endTs':end,'fidelity':'1m','limit':1000})
+    except Exception as ex: out['polymarket']['orderbook_history_error']=repr(ex)
+    try:
+        params={'limit':1000,'offset':0}
+        if condition: params['market']=condition
+        trades=get('https://data-api.polymarket.com/trades',params)
         if isinstance(trades,dict): trades=trades.get('data') or trades.get('trades') or []
-        out['polymarket']['trades']=[t for t in trades if start <= int(t.get('timestamp',0)) <= end]
+        out['polymarket']['trades']=[t for t in trades if str(t.get('asset'))==token and start <= int(t.get('timestamp',0)) <= end]
     except Exception as ex: out['polymarket']['trades_error']=repr(ex)
-    # Compact comparable minute series.
     kc=[]
     for c in out['kalshi'].get('candlesticks') or []:
         ts=int(c.get('end_period_ts') or 0)
@@ -71,5 +78,5 @@ def main():
     pp=sorted([{'t':int(x['t']),'p':float(x['p'])} for x in out['polymarket'].get('price_history') or [] if 't' in x and 'p' in x],key=lambda x:x['t'])
     out['compact']={'kalshi':kc,'polymarket':pp}
     json.dump(out,open('fomc_crossvenue_warsh.json','w'),indent=2)
-    print(json.dumps({'kalshi_ticker':out['kalshi'].get('ticker'),'kalshi_points':len(kc),'poly_points':len(pp),'poly_trades':len(out['polymarket'].get('trades') or []),'errors':out['kalshi'].get('candidate_errors')},indent=2))
+    print(json.dumps({'kalshi_ticker':out['kalshi'].get('ticker'),'kalshi_points':len(kc),'poly_points':len(pp),'poly_trades':len(out['polymarket'].get('trades') or []),'ohlc_error':out['polymarket'].get('ohlc_error'),'orderbook_error':out['polymarket'].get('orderbook_history_error'),'trade_error':out['polymarket'].get('trades_error')},indent=2))
 if __name__=='__main__':main()
