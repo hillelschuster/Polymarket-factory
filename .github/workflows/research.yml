@@ -6,6 +6,10 @@ on:
       - '.github/workflows/research.yml'
   workflow_dispatch:
 
+concurrency:
+  group: spotify-alpha-research
+  cancel-in-progress: true
+
 jobs:
   research:
     runs-on: ubuntu-latest
