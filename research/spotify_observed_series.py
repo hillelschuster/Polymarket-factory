@@ -2,8 +2,8 @@
 """Audited observed-series math for the 2026 Spotify leader-lock thesis.
 
 No probability model and no trading. This file isolates the few observations that
-matter economically: the Bad Bunny/Drake cumulative gap, its compression regimes,
-and current lead-vs-feature stream composition.
+matter economically: the Bad Bunny/Drake cumulative gap, its expansion/compression
+regimes, and current lead-vs-feature stream composition.
 
 Historical YTD observations are third-party Musical Moments (@MMoments001) figures
 captured/reposted publicly. Current daily composition comes from Kworb artist pages.
@@ -20,14 +20,15 @@ from html.parser import HTMLParser
 
 UA = {"User-Agent": "polymarket-factory-research/1.0"}
 
-# Values are streams, not probabilities. 2026-08-20 is independently visible in the
-# public repost at https://twstalker.com/Spotify_daily_d (credited to @MMoments001).
-# Earlier entries were manually audited from dated captures of the same tracker.
+# Values are streams, not probabilities. 2026-08-20 is independently visible in a
+# public repost credited to @MMoments001. Earlier entries were manually audited from
+# dated captures of the same tracker. Keep these inputs few and reviewable.
 YTD_ALL_CREDIT = [
+    {"date": "2026-02-19", "bad_bunny": 4_210_999_463, "drake": 2_614_409_091, "source": "MMoments001 dated capture"},
     {"date": "2026-03-26", "bad_bunny": 7_121_823_668, "drake": 4_415_340_091, "source": "MMoments001 dated capture"},
     {"date": "2026-05-21", "bad_bunny": 10_579_391_292, "drake": 8_126_972_557, "source": "MMoments001 dated capture"},
     {"date": "2026-05-28", "bad_bunny": 11_019_256_387, "drake": 8_803_247_096, "source": "MMoments001 dated capture"},
-    {"date": "2026-08-20", "bad_bunny": 15_720_000_000, "drake": 13_950_000_000, "source": "MMoments001 via Spotify_daily_d public repost"},
+    {"date": "2026-08-20", "bad_bunny": 15_720_000_000, "drake": 13_950_000_000, "source": "MMoments001 via public repost"},
 ]
 
 KWORB = {
@@ -76,6 +77,7 @@ def enrich_series():
     for a,b in zip(rows,rows[1:]):
         da=dt.date.fromisoformat(a["date"]); db=dt.date.fromisoformat(b["date"])
         days=(db-da).days
+        # Positive => Drake caught up; negative => Bad Bunny expanded his lead.
         compression=a["gap_bad_bunny_minus_drake"]-b["gap_bad_bunny_minus_drake"]
         segments.append({
             "start":a["date"], "end":b["date"], "days":days,
@@ -117,7 +119,9 @@ def main():
         "current_kworb_daily":current,
         "composition":composition,
         "derived_regimes":{
-            "release_shock_may21_may28":next((s for s in segments if s["start"]=="2026-05-21"),None),
+            "bad_bunny_positive_shock_feb19_mar26":next((s for s in segments if s["start"]=="2026-02-19"),None),
+            "pre_drake_release_mar26_may21":next((s for s in segments if s["start"]=="2026-03-26"),None),
+            "drake_release_shock_may21_may28":next((s for s in segments if s["start"]=="2026-05-21"),None),
             "post_release_may28_aug20":next((s for s in segments if s["start"]=="2026-05-28"),None),
         },
     }
