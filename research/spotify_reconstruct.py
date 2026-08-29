@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Reconstruct Spotify artist YTD lead/feature streams from public point-in-time pages.
+"""Reconstruct Spotify YTD lead/feature streams from public point-in-time Kworb pages.
 
-Research only. No trading. Uses current Kworb pages plus Internet Archive snapshots.
-The output is deliberately raw enough to audit before any probability model uses it.
+Research only. No trading. Current pages are fetched from Kworb; historical anchors
+come from the Internet Archive. The script is intentionally small and fast-failing:
+2026 anchors are attempted only for the serious current contenders, then historical
+validation runs only if the current reconstruction is viable.
 """
 from __future__ import annotations
 
@@ -21,16 +23,18 @@ ARTISTS = {
     "Bad Bunny": "4q3ewBCX7sLwd24euuV69X",
     "Drake": "3TVXtAsR1Inumwj472S9r4",
     "Taylor Swift": "06HL4z0CvFAxyc27GXpf02",
+    "Bruno Mars": "0du5cEVh5yTK9QJze8zA0C",
     "The Weeknd": "1Xyo4u8uXC1ZmMpatF05PJ",
     "Ariana Grande": "66CXWjxzNUsdJxJ2JdwvnR",
     "Travis Scott": "0Y5tJX1MQlPlqiwlOH1tJY",
     "Billie Eilish": "6qqNVTkY8uBg9cP3Jd7DAH",
-    "Bruno Mars": "0du5cEVh5yTK9QJze8zA0C",
     "Justin Bieber": "1uNFoZAHBGtllmzznpCI3s",
 }
+ANCHOR_2026 = ("Bad Bunny", "Drake", "Taylor Swift", "Bruno Mars")
+HISTORICAL_CORE = ("Taylor Swift", "Bad Bunny", "The Weeknd", "Drake")
 
-# Same four artists occupy Spotify's official global top four in 2023-2025,
-# with a different ordering each year. That makes them a clean proxy check.
+# Official Spotify global order. These four reorder across years, which makes them
+# a useful proxy-validation set instead of merely checking the eventual winner.
 OFFICIAL_ORDER = {
     2023: ["Taylor Swift", "Bad Bunny", "The Weeknd", "Drake"],
     2024: ["Taylor Swift", "The Weeknd", "Bad Bunny", "Drake"],
@@ -59,41 +63,38 @@ class RowParser(HTMLParser):
 
     def handle_endtag(self, tag):
         if tag in ("td", "th") and self.in_cell:
-            text = " ".join("".join(self.cell).split())
-            self.row.append(html_lib.unescape(text))
+            self.row.append(html_lib.unescape(" ".join("".join(self.cell).split())))
             self.in_cell = False
         elif tag == "tr" and self.row:
             self.rows.append(self.row)
             self.row = []
 
 
-def request_text(url: str, params=None, timeout=35) -> str:
+def request_text(url: str, params=None, timeout=12, attempts=1) -> str:
     if params:
         url += ("&" if "?" in url else "?") + urllib.parse.urlencode(params, doseq=True)
     req = urllib.request.Request(url, headers=UA)
     last = None
-    for attempt in range(3):
+    for attempt in range(attempts):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read().decode("utf-8", "replace")
         except Exception as ex:
             last = ex
-            if attempt < 2:
-                time.sleep(1.0 + attempt)
+            if attempt + 1 < attempts:
+                time.sleep(0.5)
     raise last
 
 
-def request_json(url: str, params=None):
-    return json.loads(request_text(url, params))
+def request_json(url: str, params=None, timeout=10):
+    return json.loads(request_text(url, params, timeout=timeout, attempts=1))
 
 
 def num(s):
     if s is None:
         return None
     m = re.search(r"-?[0-9][0-9,]*(?:\.[0-9]+)?", str(s))
-    if not m:
-        return None
-    return float(m.group(0).replace(",", ""))
+    return float(m.group(0).replace(",", "")) if m else None
 
 
 def parse_kworb(page: str) -> dict:
@@ -111,8 +112,7 @@ def parse_kworb(page: str) -> dict:
                 "solo": num(row[3]),
                 "feature": num(row[4]),
             }
-    text = re.sub(r"<[^>]+>", " ", page)
-    text = " ".join(html_lib.unescape(text).split())
+    text = " ".join(html_lib.unescape(re.sub(r"<[^>]+>", " ", page)).split())
     m = re.search(r"Last updated:\s*(\d{4}/\d{2}/\d{2})", text, re.I)
     if m:
         out["page_date"] = m.group(1)
@@ -130,88 +130,66 @@ def current_stats(artist_id: str):
     for host in ("kworb.net", "www.kworb.net"):
         url = kworb_url(artist_id, host)
         try:
-            return {"url": url, **parse_kworb(request_text(url))}
+            return {"url": url, **parse_kworb(request_text(url, timeout=15, attempts=2))}
         except Exception as ex:
             errors.append(f"{url}: {ex!r}")
     raise RuntimeError("; ".join(errors))
 
 
-def cdx_candidates(artist_id: str, start: dt.date, end: dt.date):
-    rows = []
-    for host in ("kworb.net", "www.kworb.net"):
-        target = f"{host}/spotify/artist/{artist_id}_songs.html"
-        params = {
-            "url": target,
-            "from": start.strftime("%Y%m%d"),
-            "to": end.strftime("%Y%m%d"),
-            "output": "json",
-            "fl": "timestamp,original,statuscode,digest",
-            "filter": "statuscode:200",
-            "collapse": "digest",
-        }
+def wayback_nearest(artist_id: str, target: dt.date):
+    """Ask Wayback's availability API for one nearest snapshot, then parse it."""
+    target_url = kworb_url(artist_id)
+    stamp = target.strftime("%Y%m%d")
+    errors = []
+    for original in (target_url, kworb_url(artist_id, "www.kworb.net")):
         try:
-            data = request_json("https://web.archive.org/cdx/search/cdx", params)
-            for r in data[1:] if isinstance(data, list) and data else []:
-                if len(r) >= 2:
-                    rows.append({"timestamp": r[0], "original": r[1], "host_query": host})
-        except Exception as ex:
-            rows.append({"error": repr(ex), "host_query": host})
-    return rows
-
-
-def closest_archive(artist_id: str, target: dt.date, radius_days=21):
-    start = target - dt.timedelta(days=radius_days)
-    end = target + dt.timedelta(days=radius_days)
-    candidates = cdx_candidates(artist_id, start, end)
-    valid = []
-    for c in candidates:
-        ts = c.get("timestamp")
-        if not ts:
-            continue
-        try:
-            d = dt.datetime.strptime(ts[:8], "%Y%m%d").date()
-            valid.append((abs((d - target).days), d, c))
-        except Exception:
-            pass
-    valid.sort(key=lambda x: (x[0], x[1]))
-    errors = [c for c in candidates if "error" in c]
-    for distance, snap_date, c in valid[:5]:
-        archived = f"https://web.archive.org/web/{c['timestamp']}id_/{c['original']}"
-        try:
-            stats = parse_kworb(request_text(archived, timeout=45))
+            j = request_json(
+                "https://archive.org/wayback/available",
+                {"url": original, "timestamp": stamp},
+                timeout=8,
+            )
+            c = (j.get("archived_snapshots") or {}).get("closest") or {}
+            if not c.get("available"):
+                errors.append({"original": original, "error": "no available snapshot"})
+                continue
+            ts = str(c.get("timestamp") or "")
+            archived = str(c.get("url") or "").replace("http://", "https://")
+            # id_ asks Wayback for the original payload without toolbar rewriting.
+            if "/web/" in archived and "id_/" not in archived:
+                archived = re.sub(r"(/web/\d+)(/)", r"\1id_\2", archived, count=1)
+            stats = parse_kworb(request_text(archived, timeout=12, attempts=1))
+            snap_date = dt.datetime.strptime(ts[:8], "%Y%m%d").date() if len(ts) >= 8 else None
             return {
                 "target_date": target.isoformat(),
-                "snapshot_date": snap_date.isoformat(),
-                "distance_days": distance,
-                "timestamp": c["timestamp"],
-                "original": c["original"],
+                "snapshot_date": snap_date.isoformat() if snap_date else None,
+                "distance_days": abs((snap_date - target).days) if snap_date else None,
+                "timestamp": ts,
+                "original": original,
                 "archive_url": archived,
                 "stats": stats,
-                "cdx_errors": errors,
             }
         except Exception as ex:
-            errors.append({"snapshot": c, "fetch_error": repr(ex)})
-    return {
-        "target_date": target.isoformat(),
-        "error": "no parseable archive snapshot within radius",
-        "candidate_count": len(valid),
-        "errors": errors,
-    }
+            errors.append({"original": original, "error": repr(ex)})
+    return {"target_date": target.isoformat(), "error": "no parseable nearest Wayback snapshot", "errors": errors}
 
 
-def delta_stats(a: dict, b: dict):
-    """b-a for stream counters."""
+def delta_stats(anchor: dict, current_or_archive: dict):
     try:
-        sa, sb = a["stats"]["streams"], b["streams"] if "streams" in b else b["stats"]["streams"]
+        a = anchor["stats"]["streams"]
+        b = current_or_archive["streams"] if "streams" in current_or_archive else current_or_archive["stats"]["streams"]
     except Exception:
         return None
-    return {k: sb.get(k) - sa.get(k) for k in ("total", "lead", "solo", "feature") if sa.get(k) is not None and sb.get(k) is not None}
+    return {
+        k: float(b[k]) - float(a[k])
+        for k in ("total", "lead", "solo", "feature")
+        if a.get(k) is not None and b.get(k) is not None
+    }
 
 
 def main():
     out = {
         "generated_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "source_note": "Kworb is third-party public data. Archive snapshots can be sparse and are not treated as authoritative Spotify data.",
+        "source_note": "Kworb is third-party public data; Wayback snapshots are audit inputs, not official Spotify data.",
         "current": {},
         "jan1_2026": {},
         "ytd_2026": {},
@@ -219,59 +197,61 @@ def main():
         "official_order": OFFICIAL_ORDER,
     }
 
-    # Current state and Jan-1 anchors for current contenders.
+    # Current data are cheap; collect a slightly wider field to avoid overlooking an outsider.
     for name, artist_id in ARTISTS.items():
         try:
-            cur = current_stats(artist_id)
-            out["current"][name] = cur
+            out["current"][name] = current_stats(artist_id)
         except Exception as ex:
             out["current"][name] = {"error": repr(ex)}
-            continue
-        try:
-            jan = closest_archive(artist_id, dt.date(2026, 1, 1), 24)
-            out["jan1_2026"][name] = jan
-            d = delta_stats(jan, cur)
-            if d:
-                out["ytd_2026"][name] = {
-                    **d,
-                    "anchor_snapshot_date": jan.get("snapshot_date"),
-                    "current_page_date": cur.get("page_date"),
-                    "current_daily": cur.get("daily"),
-                }
-        except Exception as ex:
-            out["jan1_2026"][name] = {"error": repr(ex)}
-        time.sleep(0.15)
 
-    # Historical proxy check. Use Jan-1 and Nov-15 anchors for the same top four.
-    core = list(OFFICIAL_ORDER[2023])
-    for year in (2023, 2024, 2025):
-        yr = {}
-        for name in core:
-            artist_id = ARTISTS[name]
-            jan = closest_archive(artist_id, dt.date(year, 1, 1), 24)
-            nov = closest_archive(artist_id, dt.date(year, 11, 15), 24)
-            rec = {"jan": jan, "nov": nov}
-            if "stats" in jan and "stats" in nov:
-                rec["jan_to_nov_delta"] = {
-                    k: nov["stats"]["streams"][k] - jan["stats"]["streams"][k]
-                    for k in ("total", "lead", "solo", "feature")
-                }
-            yr[name] = rec
-            time.sleep(0.15)
-        out["historical_validation"][str(year)] = yr
+    # Expensive archive work only for the four economically relevant current outcomes.
+    for name in ANCHOR_2026:
+        cur = out["current"].get(name) or {}
+        if "streams" not in cur:
+            continue
+        jan = wayback_nearest(ARTISTS[name], dt.date(2026, 1, 1))
+        out["jan1_2026"][name] = jan
+        d = delta_stats(jan, cur)
+        if d:
+            out["ytd_2026"][name] = {
+                **d,
+                "anchor_snapshot_date": jan.get("snapshot_date"),
+                "anchor_distance_days": jan.get("distance_days"),
+                "current_page_date": cur.get("page_date"),
+                "current_daily": cur.get("daily"),
+            }
+
+    # Historical validation only if the archive path proved viable for current data.
+    if len(out["ytd_2026"]) >= 2:
+        for year in (2023, 2024, 2025):
+            yr = {}
+            for name in HISTORICAL_CORE:
+                artist_id = ARTISTS[name]
+                jan = wayback_nearest(artist_id, dt.date(year, 1, 1))
+                nov = wayback_nearest(artist_id, dt.date(year, 11, 15))
+                rec = {"jan": jan, "nov": nov}
+                if "stats" in jan and "stats" in nov:
+                    rec["jan_to_nov_delta"] = {
+                        k: float(nov["stats"]["streams"][k]) - float(jan["stats"]["streams"][k])
+                        for k in ("total", "lead", "solo", "feature")
+                    }
+                yr[name] = rec
+            out["historical_validation"][str(year)] = yr
 
     with open("spotify_reconstruction.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)
 
-    compact = {"ytd_2026": out["ytd_2026"], "archive_errors": {}}
-    for name, rec in out["jan1_2026"].items():
-        if "error" in rec:
-            compact["archive_errors"][name] = rec
-    compact["historical_complete"] = {
-        y: [name for name, r in yr.items() if "jan_to_nov_delta" in r]
-        for y, yr in out["historical_validation"].items()
-    }
-    print(json.dumps(compact, indent=2))
+    print(json.dumps({
+        "ytd_2026": out["ytd_2026"],
+        "jan_anchor_status": {
+            n: {k: r.get(k) for k in ("snapshot_date", "distance_days", "error")}
+            for n, r in out["jan1_2026"].items()
+        },
+        "historical_complete": {
+            y: [n for n, r in yr.items() if "jan_to_nov_delta" in r]
+            for y, yr in out["historical_validation"].items()
+        },
+    }, indent=2))
 
 
 if __name__ == "__main__":
