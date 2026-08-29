@@ -8,7 +8,7 @@ UA={'User-Agent':'polymarket-factory-research/1.0'}; ET=ZoneInfo('America/New_Yo
 def get(url,params=None):
     if params: url += ('&' if '?' in url else '?')+urllib.parse.urlencode(params,doseq=True)
     with urllib.request.urlopen(urllib.request.Request(url,headers=UA),timeout=20) as r:return json.load(r)
-def post(url,payload):
+def post_json(url,payload):
     req=urllib.request.Request(url,data=json.dumps(payload).encode(),headers={**UA,'Content-Type':'application/json'},method='POST')
     with urllib.request.urlopen(req,timeout=20) as r:return json.load(r)
 def arr(v):
@@ -43,7 +43,7 @@ def main():
             ev=get('https://gamma-api.polymarket.com/events/slug/'+slug); m,token=winner(ev)
             if not m:raise RuntimeError('winner token not found')
             date=(CPI if fam=='CPI' else PPI if fam=='PPI' else EMP)[mo]; release=rel(*date); rt=int(release.timestamp())
-            h=post('https://clob.polymarket.com/batch-prices-history',{'markets':[token],'start_ts':rt-21600,'end_ts':rt+600,'interval':'all','fidelity':1}).get('history',{})
+            h=post_json('https://clob.polymarket.com/batch-prices-history',{'markets':[token],'start_ts':rt-21600,'end_ts':rt+600,'interval':'all','fidelity':1}).get('history',{})
             ph=h.get(token) or h.get(str(token)) or []
             pts=sorted((int(x['t']),float(x['p'])) for x in ph if 't'in x and 'p'in x)
             rec={'family':fam,'month':mo,'slug':slug,'title':ev.get('title'),'volume':float(ev.get('volume') or 0),'winner':m.get('groupItemTitle') or m.get('question'),'release':release.isoformat(),'token':token,'point_count':len(pts),'last_point':({'t':pts[-1][0],'delta_s':pts[-1][0]-rt,'p':pts[-1][1]} if pts else None),'first_post_release':first_after(ph,rt)}
@@ -51,8 +51,8 @@ def main():
             rows.append(rec)
         except Exception as ex:errors.append({'slug':slug,'error':repr(ex)})
     with_hist=[r for r in rows if r['point_count']]
-    post=[r for r in with_hist if r['first_post_release']]
-    summary={'events':len(rows),'events_with_history':len(with_hist),'events_with_any_post_release_clob_point':len(post),'last_delta_seconds':[r['last_point']['delta_s'] for r in with_hist]}
+    post_rows=[r for r in with_hist if r['first_post_release']]
+    summary={'events':len(rows),'events_with_history':len(with_hist),'events_with_any_post_release_clob_point':len(post_rows),'last_delta_seconds':[r['last_point']['delta_s'] for r in with_hist]}
     for mins in (1,2,5):
         xs=[r for r in with_hist if r.get(f'first_after_{mins}m')]; stale=[r for r in xs if r[f'first_after_{mins}m']['p']<=.95]
         summary[f'{mins}m']={'events_with_point':len(xs),'winner_price_le_95c':len(stale),'events':[{'slug':r['slug'],'family':r['family'],'winner':r['winner'],'volume':r['volume'],**r[f'first_after_{mins}m']} for r in stale]}
