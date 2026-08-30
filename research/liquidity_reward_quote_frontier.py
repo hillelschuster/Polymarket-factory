@@ -35,8 +35,6 @@ MAX_TICKS=250
 def own_coordinate_books(books_by_token,tokens,own_idx):
     own=books_by_token[tokens[own_idx]]
     other=books_by_token[tokens[1-own_idx]]
-    # lr.merge_yes_book treats first argument as the focal outcome and the other
-    # token as its binary complement, exactly what we need here.
     return lr.merge_yes_book(own,other),own
 
 
@@ -50,11 +48,8 @@ def score_quote(price,mid,v,size):
 def quote_levels(lo,hi,tick):
     if tick<=0:return []
     n=int((hi-lo)/tick)+1
-    if n>MAX_TICKS:
-        step=max(1,n//MAX_TICKS)
-    else:step=1
-    out=[]
-    i=0
+    step=max(1,n//MAX_TICKS) if n>MAX_TICKS else 1
+    out=[];i=0
     while lo+i*tick<=hi+1e-12:
         if i%step==0:out.append(round(lo+i*tick,10))
         i+=1
@@ -88,7 +83,7 @@ def frontier(c,now):
     mid=(adj_bid+adj_ask)/2
     if not(.10<=mid<=.90):raise ValueError('single-sided not reward eligible at extreme midpoint')
     qbid=lr.score_side(bids,mid,v);qask=lr.score_side(asks,mid,v);comp=lr.qmin_proxy(qbid,qask,mid)
-    tick=audit.num(own_book.get('tick_size'),.001) or .001
+    tick=audit.num(own_book.get('tick_size')) or .001
     own_bids=sorted(lr.levels(own_book,'bids'),reverse=True)
     own_asks=sorted(lr.levels(own_book,'asks'))
     best_bid=own_bids[0][0] if own_bids else None;best_ask=own_asks[0][0] if own_asks else None
@@ -113,14 +108,11 @@ def frontier(c,now):
             r['full_loss_cover_days'][str(mult)+'x_visible_competition']=capital/rew if rew>0 else None
         for h in (24,72,168):
             ss=[x for x in sells if x['t']>=nowts-h*3600 and x['price']<=p+1e-12]
-            shares=sum(x['size'] for x in ss)
-            days=h/24
+            shares=sum(x['size'] for x in ss);days=h/24
             r['fill_pressure'][str(h)+'h']={'sell_through_count':len(ss),'sell_through_shares':shares,
                 'sell_through_min_orders':shares/min_size if min_size else None,
                 'sell_through_min_orders_per_day':shares/min_size/days if min_size else None,
                 'min_sell_price':min((x['price'] for x in ss),default=None)}
-        # Profitability-oriented robust heuristic: use 5x competition stress and
-        # penalize observed 72h sell-through plus zero queue shelter.
         rew5=r['reward_proxy']['5x_visible_competition'];fp=r['fill_pressure']['72h']['sell_through_min_orders_per_day'] or 0
         shelter=min(3.0,1.0+r['queue_protection_min_orders']/5.0)
         r['robust_score']=(rew5/max(capital,1e-9))*shelter/(1+fp)
