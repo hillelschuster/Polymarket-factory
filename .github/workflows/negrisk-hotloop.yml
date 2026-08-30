@@ -1,0 +1,28 @@
+name: NegRisk Hot Loop Benchmark
+on:
+  push:
+    paths:
+      - 'research/negrisk_hotloop_benchmark.py'
+      - '.github/workflows/negrisk-hotloop.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-hotloop
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Benchmark cached book loop
+        run: python research/negrisk_hotloop_benchmark.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-hotloop-output
+          path: negrisk_hotloop_benchmark.json
