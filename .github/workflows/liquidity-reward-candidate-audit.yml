@@ -1,0 +1,28 @@
+name: Liquidity Reward Candidate Audit
+on:
+  push:
+    paths:
+      - 'research/liquidity_reward_candidate_audit.py'
+      - '.github/workflows/liquidity-reward-candidate-audit.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-liquidity-reward-candidate-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit exact reward sources and sell-through pressure
+        run: python research/liquidity_reward_candidate_audit.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquidity-reward-candidate-audit-output
+          path: liquidity_reward_candidate_audit.json
