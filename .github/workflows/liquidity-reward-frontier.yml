@@ -1,0 +1,28 @@
+name: Liquidity Reward Quote Frontier
+on:
+  push:
+    paths:
+      - 'research/liquidity_reward_quote_frontier.py'
+      - '.github/workflows/liquidity-reward-frontier.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-liquidity-reward-frontier
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Optimize reward quote frontier
+        run: python research/liquidity_reward_quote_frontier.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquidity-reward-frontier-output
+          path: liquidity_reward_quote_frontier.json
