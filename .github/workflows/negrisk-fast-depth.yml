@@ -1,0 +1,28 @@
+name: NegRisk Fast Depth Observer
+on:
+  push:
+    paths:
+      - 'research/negrisk_fast_depth_observer.py'
+      - '.github/workflows/negrisk-fast-depth.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-fast-depth
+  cancel-in-progress: true
+
+jobs:
+  observer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan active complete baskets with batched books
+        run: python research/negrisk_fast_depth_observer.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-fast-depth-output
+          path: negrisk_fast_depth_observer.json
