@@ -1,0 +1,28 @@
+name: NFL T-7 Symmetric Favorite
+on:
+  push:
+    paths:
+      - 'research/nfl_t7_symmetric_favorite.py'
+      - '.github/workflows/nfl-t7-symmetric.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-nfl-t7-symmetric
+  cancel-in-progress: true
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Remove listing-order bias
+        run: python research/nfl_t7_symmetric_favorite.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-t7-symmetric-output
+          path: nfl_t7_symmetric_favorite.json
