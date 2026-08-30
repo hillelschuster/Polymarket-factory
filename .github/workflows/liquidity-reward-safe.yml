@@ -1,0 +1,28 @@
+name: Liquidity Reward Safe Quote Audit
+on:
+  push:
+    paths:
+      - 'research/liquidity_reward_safe_quote_audit.py'
+      - '.github/workflows/liquidity-reward-safe.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-liquidity-reward-safe
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit reward quotes near fair price
+        run: python research/liquidity_reward_safe_quote_audit.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquidity-reward-safe-output
+          path: liquidity_reward_safe_quote_audit.json
