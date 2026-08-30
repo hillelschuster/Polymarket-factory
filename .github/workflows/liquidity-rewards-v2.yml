@@ -1,0 +1,28 @@
+name: Liquidity Reward Hardened Screen
+on:
+  push:
+    paths:
+      - 'research/liquidity_reward_live_screen_v2.py'
+      - '.github/workflows/liquidity-rewards-v2.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-liquidity-rewards-v2
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run hardened reward screen
+        run: python research/liquidity_reward_live_screen_v2.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquidity-reward-v2-output
+          path: liquidity_reward_live_screen_v2.json
