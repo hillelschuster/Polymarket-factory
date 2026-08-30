@@ -1,0 +1,28 @@
+name: NegRisk 2024 Trade Window Audit
+on:
+  push:
+    paths:
+      - 'research/negrisk_2024_trade_window_audit.py'
+      - '.github/workflows/negrisk-2024-trades.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-2024-trades
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reconstruct actual trade window
+        run: python research/negrisk_2024_trade_window_audit.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-2024-trade-audit-output
+          path: negrisk_2024_trade_window_audit.json
