@@ -1,0 +1,28 @@
+name: NegRisk Maker-Triggered Converter
+on:
+  push:
+    paths:
+      - 'research/negrisk_maker_triggered_converter.py'
+      - '.github/workflows/negrisk-maker-trigger.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-maker-trigger
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan conditional maker-triggered conversions
+        run: python research/negrisk_maker_triggered_converter.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-maker-trigger-output
+          path: negrisk_maker_triggered_converter.json
