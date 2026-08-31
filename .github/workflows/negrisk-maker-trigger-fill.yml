@@ -1,0 +1,33 @@
+name: NegRisk Maker-Trigger Fill Audit
+on:
+  push:
+    paths:
+      - 'research/negrisk_maker_triggered_converter.py'
+      - 'research/negrisk_maker_trigger_fill_audit.py'
+      - '.github/workflows/negrisk-maker-trigger-fill.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-maker-trigger-fill
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rebuild current maker-trigger setups
+        run: python research/negrisk_maker_triggered_converter.py
+      - name: Audit recent sell-through at safe bids
+        run: python research/negrisk_maker_trigger_fill_audit.py
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-maker-trigger-fill-output
+          path: |
+            negrisk_maker_triggered_converter.json
+            negrisk_maker_trigger_fill_audit.json
