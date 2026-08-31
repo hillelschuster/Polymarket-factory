@@ -1,0 +1,28 @@
+name: NegRisk Execution Slippage Stress
+on:
+  push:
+    paths:
+      - 'research/negrisk_execution_slippage_stress.py'
+      - '.github/workflows/negrisk-slippage-stress.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-slippage-stress
+  cancel-in-progress: true
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Stress observed baskets for slippage and late-leg risk
+        run: python research/negrisk_execution_slippage_stress.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-slippage-stress-output
+          path: negrisk_execution_slippage_stress.json
