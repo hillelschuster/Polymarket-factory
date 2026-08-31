@@ -36,7 +36,7 @@ def main():
     stressed=[]
     for i,x in enumerate(cycles):
         base_prices=[r['price'] for r in x['legs'].values()];q=x['common_observed_size']
-        rec={'cycle':i,'wallet':x.get('wallet'),'span_seconds':x['span_seconds'],'common_size':q,
+        rec={'cycle':i,'wallet':x.get('wallet'),'span_seconds':x['observed_span_seconds'],'common_size':q,
              'observed_prices':base_prices,'base':calc(base_prices,q),'uniform':{},'one_leg_worst':{}}
         for s in UNIFORM:
             ps=[min(.999,p+s) for p in base_prices];rec['uniform'][str(s)]=calc(ps,q)
