@@ -1,0 +1,28 @@
+name: NegRisk Converter Live Scan
+on:
+  push:
+    paths:
+      - 'research/negrisk_converter_live_scanner.py'
+      - '.github/workflows/negrisk-converter-live.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-converter-live
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scan converter-enabled complete and subset arbs
+        run: python research/negrisk_converter_live_scanner.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-converter-live-output
+          path: negrisk_converter_live_scanner.json
