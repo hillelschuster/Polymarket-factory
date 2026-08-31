@@ -1,0 +1,28 @@
+name: NegRisk Blind Near-Close Replication
+on:
+  push:
+    paths:
+      - 'research/negrisk_blind_close_window_replication.py'
+      - '.github/workflows/negrisk-blind-close.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: polymarket-negrisk-blind-close
+  cancel-in-progress: true
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run blind final-48h trade reconstruction
+        run: python research/negrisk_blind_close_window_replication.py
+      - name: Upload output
+        uses: actions/upload-artifact@v4
+        with:
+          name: negrisk-blind-close-output
+          path: negrisk_blind_close_window_replication.json
